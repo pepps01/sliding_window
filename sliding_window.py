@@ -44,41 +44,16 @@ class SlidingWindowCounter:
             print(f"Received message from Kafka: {message.value}")
             self.add_event()  # Process each event as it arrives
 
-    # Kinesis event processing
-    def consume_kinesis_events(self, stream_name, region_name):
-        kinesis_client = boto3.client('kinesis', region_name=region_name)
-        shard_id = kinesis_client.describe_stream(StreamName=stream_name)['StreamDescription']['Shards'][0]['ShardId']
-        shard_iterator = kinesis_client.get_shard_iterator(StreamName=stream_name, ShardId=shard_id, ShardIteratorType='LATEST')['ShardIterator']
-        
-        while True:
-            response = kinesis_client.get_records(ShardIterator=shard_iterator, Limit=100)
-            records = response['Records']
-            for record in records:
-                print(f"Received record from Kinesis: {record['Data']}")
-                self.add_event()  # Process each event
-            shard_iterator = response['NextShardIterator']
-            time.sleep(1)
-
-# Example usage for Kafka and Kinesis
+ 
 if name == "__main__":
     sliding_window = SlidingWindowCounter(window_size_sec=300)
     
-    # Kafka setup
     kafka_topic = os.getenv['KAFKA_TOPIC']
     bootstrap_servers = ['localhost:9092']
     
-    # Start Kafka consumer in a separate thread (or process)
     import threading
     kafka_thread = threading.Thread(target=sliding_window.consume_kafka_events, args=(kafka_topic, bootstrap_servers))
     kafka_thread.start()
-
-    # Kinesis setup
-    stream_name =  os.getenv['KINESIS_STREAM']
-    region_name =  os.getenv['AWS_REGION']
-
-    # Start Kinesis consumer in another thread (or process)
-    kinesis_thread = threading.Thread(target=sliding_window.consume_kinesis_events, args=(stream_name, region_name))
-    kinesis_thread.start()
 
     # Simulate event counting over time
     while True:
